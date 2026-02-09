@@ -2,18 +2,12 @@
   <footer class="footer">
     <div class="footer-content">
       <p class="footer-copyright">
-        &copy; {{ currentYear }} {{ info.name || 'Photography Portfolio' }}. All rights reserved.
+        &copy; {{ currentYear }} <a :href="info.authorLink" target="_blank" rel="noopener noreferrer">{{ info.author ||
+          'Photography Portfolio' }}</a>. All rights reserved.
       </p>
       <nav class="footer-links" v-if="info.links && info.links.length">
-        <a
-          v-for="link in info.links"
-          :key="link.name"
-          :href="link.url"
-          :title="link.name"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="footer-link"
-        >
+        <a v-for="link in info.links" :key="link.name" :href="link.url" :title="link.name" target="_blank"
+          rel="noopener noreferrer" class="footer-link">
           {{ link.name }}
         </a>
       </nav>

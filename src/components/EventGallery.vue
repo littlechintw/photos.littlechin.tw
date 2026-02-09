@@ -4,13 +4,8 @@
       <div class="event-header">
         <div class="event-title-row">
           <h2 class="event-name">{{ event.name }}</h2>
-          <a
-            v-if="event.albumUrl"
-            class="event-title-link"
-            :href="event.albumUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a v-if="event.albumUrl" class="event-title-link" :href="event.albumUrl" target="_blank"
+            rel="noopener noreferrer">
             Album ↗
           </a>
         </div>
@@ -22,52 +17,35 @@
           {{ event.description }}
         </p>
       </div>
-      
+
       <div class="images-grid">
-        <div
-          v-for="(image, index) in getDisplayImages(event)"
-          :key="index"
-          class="image-card"
-          @mouseenter="loadExif($event, event.folder, image)"
-          @mouseleave="hideExif"
-        >
-          <div
-            class="image-item"
-            @click="openLightbox(event, index)"
-          >
-            <img
-              :src="getImagePath(event.folder, image)"
-              :alt="`${event.name} - Photo ${index + 1}`"
-              loading="lazy"
-              class="gallery-image"
-              :ref="el => { if (el) imageRefs.set(getImagePath(event.folder, image), el) }"
-            />
+        <div v-for="(image, index) in getDisplayImages(event)" :key="index" class="image-card"
+          @mouseenter="loadExif($event, event.folder, image)" @mouseleave="hideExif">
+          <div class="image-item" @click="openLightbox(event, index)" @contextmenu.prevent>
+            <img :src="getImagePath(event.folder, image)" :alt="`${event.name} - Photo ${index + 1}`" loading="lazy"
+              class="gallery-image" draggable="false"
+              :ref="el => { if (el) imageRefs.set(getImagePath(event.folder, image), el) }" />
             <div class="image-overlay">
               <span class="zoom-dot" aria-hidden="true"></span>
             </div>
-          </div>
-          <div
-            v-if="exifData.visible && exifData.imagePath === getImagePath(event.folder, image)"
-            class="exif-tooltip exif-tooltip--below"
-          >
-            <div v-if="exifData.loading" class="exif-loading">Loading EXIF...</div>
-            <div v-else-if="exifData.data?.settings" class="exif-content">
-              <div class="exif-item">{{ exifData.data.settings }}</div>
+            <div class="image-corner-stack">
+              <div v-if="author" class="image-watermark">{{ author }}</div>
+              <div v-if="exifData.visible && exifData.imagePath === getImagePath(event.folder, image)"
+                class="exif-tooltip exif-tooltip--overlay">
+                <div v-if="exifData.loading" class="exif-loading">Loading EXIF...</div>
+                <div v-else-if="exifData.data?.settings" class="exif-content">
+                  <div class="exif-item">{{ exifData.data.settings }}</div>
+                </div>
+                <div v-else class="exif-no-data">No EXIF data</div>
+              </div>
             </div>
-            <div v-else class="exif-no-data">No EXIF data</div>
           </div>
         </div>
       </div>
 
       <!-- View Full Album Button -->
       <div v-if="shouldShowAlbumLink(event)" class="album-link-container">
-        <a 
-          v-if="event.albumUrl"
-          :href="event.albumUrl" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          class="album-link"
-        >
+        <a v-if="event.albumUrl" :href="event.albumUrl" target="_blank" rel="noopener noreferrer" class="album-link">
           View Full Album ({{ event.images.length }} photos) →
         </a>
         <div v-else class="album-info">
@@ -77,63 +55,57 @@
     </div>
 
     <!-- Lightbox -->
-    <div v-if="lightbox.open" class="lightbox" @click="closeLightbox">
-      <button class="lightbox-close" @click="closeLightbox">&times;</button>
-      <button 
-        class="lightbox-nav lightbox-prev" 
-        @click.stop="prevImage"
-        v-if="lightbox.images.length > 1"
-      >
-        &#8249;
-      </button>
-      <div class="lightbox-content" @click.stop>
-        <img
-          :src="lightbox.currentImage"
-          :alt="`${lightbox.eventName} - Photo ${lightbox.currentIndex + 1}`"
-          class="lightbox-image"
-          ref="lightboxImageRef"
-          @load="handleLightboxImageLoad"
-        />
-        <aside class="lightbox-panel">
-          <div class="lightbox-info">
-            <h3>{{ lightbox.eventName }}</h3>
-            <p>{{ lightbox.currentIndex + 1 }} / {{ lightbox.images.length }}</p>
-          </div>
-          <div class="lightbox-exif-card">
-            <div class="lightbox-exif-header">
-              <h4>EXIF INFO</h4>
+    <Transition name="lightbox-fade">
+      <div v-if="lightbox.open" class="lightbox" @click="closeLightbox">
+        <button class="lightbox-close" @click="closeLightbox">&times;</button>
+        <button class="lightbox-nav lightbox-prev" @click.stop="prevImage" v-if="lightbox.images.length > 1">
+          &#8249;
+        </button>
+        <div class="lightbox-content" @click.stop>
+          <Transition name="lightbox-swap" mode="out-in">
+            <div :key="lightbox.currentImage" class="lightbox-image-wrap" @contextmenu.prevent>
+              <img :src="lightbox.currentImage" :alt="`${lightbox.eventName} - Photo ${lightbox.currentIndex + 1}`"
+                class="lightbox-image" ref="lightboxImageRef" @load="handleLightboxImageLoad" draggable="false" />
+              <div v-if="author" class="lightbox-watermark">{{ author }}</div>
             </div>
-            <p v-if="lightboxExif.loading" class="lightbox-exif">Loading EXIF...</p>
-            <div v-else-if="lightboxExif.data" class="lightbox-exif-details">
-              <p v-if="lightboxExif.data.camera" class="lightbox-exif">
-                <span class="lightbox-exif-label">📷 Camera</span>
-                <span class="lightbox-exif-value">{{ lightboxExif.data.camera }}</span>
-              </p>
-              <p v-if="lightboxExif.data.lens" class="lightbox-exif">
-                <span class="lightbox-exif-label">🔍 Lens</span>
-                <span class="lightbox-exif-value">{{ lightboxExif.data.lens }}</span>
-              </p>
-              <p v-if="lightboxExif.data.settings" class="lightbox-exif">
-                <span class="lightbox-exif-label">⚙️ Settings</span>
-                <span class="lightbox-exif-value">{{ lightboxExif.data.settings }}</span>
-              </p>
-              <p v-if="lightboxExif.data.date" class="lightbox-exif">
-                <span class="lightbox-exif-label">🕒 Date</span>
-                <span class="lightbox-exif-value">{{ lightboxExif.data.date }}</span>
-              </p>
+          </Transition>
+          <aside class="lightbox-panel">
+            <div class="lightbox-info">
+              <h3>{{ lightbox.eventName }}</h3>
+              <p>{{ lightbox.currentIndex + 1 }} / {{ lightbox.images.length }}</p>
             </div>
-            <p v-else class="lightbox-exif">No EXIF data</p>
-          </div>
-        </aside>
+            <div class="lightbox-exif-card">
+              <div class="lightbox-exif-header">
+                <h4>EXIF INFO</h4>
+              </div>
+              <p v-if="lightboxExif.loading" class="lightbox-exif">Loading EXIF...</p>
+              <div v-else-if="lightboxExif.data" class="lightbox-exif-details">
+                <p v-if="lightboxExif.data.camera" class="lightbox-exif">
+                  <span class="lightbox-exif-label">📷 Camera</span>
+                  <span class="lightbox-exif-value">{{ lightboxExif.data.camera }}</span>
+                </p>
+                <p v-if="lightboxExif.data.lens" class="lightbox-exif">
+                  <span class="lightbox-exif-label">🔍 Lens</span>
+                  <span class="lightbox-exif-value">{{ lightboxExif.data.lens }}</span>
+                </p>
+                <p v-if="lightboxExif.data.settings" class="lightbox-exif">
+                  <span class="lightbox-exif-label">⚙️ Settings</span>
+                  <span class="lightbox-exif-value">{{ lightboxExif.data.settings }}</span>
+                </p>
+                <p v-if="lightboxExif.data.date" class="lightbox-exif">
+                  <span class="lightbox-exif-label">🕒 Date</span>
+                  <span class="lightbox-exif-value">{{ lightboxExif.data.date }}</span>
+                </p>
+              </div>
+              <p v-else class="lightbox-exif">No EXIF data</p>
+            </div>
+          </aside>
+        </div>
+        <button class="lightbox-nav lightbox-next" @click.stop="nextImage" v-if="lightbox.images.length > 1">
+          &#8250;
+        </button>
       </div>
-      <button 
-        class="lightbox-nav lightbox-next" 
-        @click.stop="nextImage"
-        v-if="lightbox.images.length > 1"
-      >
-        &#8250;
-      </button>
-    </div>
+    </Transition>
   </div>
 </template>
 
@@ -149,6 +121,10 @@ const props = defineProps({
   maxImages: {
     type: Number,
     default: 6
+  },
+  author: {
+    type: String,
+    default: ''
   }
 })
 
@@ -176,6 +152,7 @@ const lightboxExif = ref({
 const lightboxImageRef = ref(null)
 
 const imageRefs = ref(new Map())
+const exifCache = new Map()
 
 const getImagePath = (folder, image) => {
   return `/imgs/${folder}/${image}`
@@ -201,18 +178,18 @@ const shouldShowAlbumLink = (event) => {
 
 const formatDate = (date) => {
   if (!date) return '';
-  
+
   // Handle date ranges (e.g., "2025-11-30 to 2025-12-01" or object with start/end)
   if (typeof date === 'object' && (date.start || date.end)) {
     const startFormatted = formatSingleDate(date.start, date.format);
     const endFormatted = formatSingleDate(date.end, date.format);
-    
+
     if (date.start && date.end) {
       return `${startFormatted} - ${endFormatted}`;
     }
     return startFormatted || endFormatted;
   }
-  
+
   // Handle string dates (could be range or single)
   if (typeof date === 'string') {
     // Check if it's a range
@@ -221,20 +198,20 @@ const formatDate = (date) => {
       const [start, end] = date.split(separator).map(d => d.trim());
       return `${formatSingleDate(start)} - ${formatSingleDate(end)}`;
     }
-    
+
     return formatSingleDate(date);
   }
-  
+
   return '';
 }
 
 const formatSingleDate = (dateString, format) => {
   if (!dateString) return '';
-  
+
   try {
     // Parse the date string
     const parts = dateString.split('-');
-    
+
     // Determine format based on parts length or explicit format
     if (format === 'year' || parts.length === 1) {
       // Year only (e.g., "2025")
@@ -242,17 +219,17 @@ const formatSingleDate = (dateString, format) => {
     } else if (format === 'year-month' || parts.length === 2) {
       // Year-month (e.g., "2025-11" -> "November 2025")
       const date = new Date(`${parts[0]}-${parts[1]}-01`);
-      return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
         month: 'long'
       });
     } else {
       // Full date (e.g., "2025-11-30" -> "November 30, 2025")
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       });
     }
   } catch (error) {
@@ -323,8 +300,14 @@ const parseExifData = (tags) => {
 const loadExifFromUrl = async (imageUrl) => {
   // ExifReader.load() supports URLs in browser context and will reuse cached images
   // See: https://github.com/mattiasw/ExifReader#let-exifreader-load-the-file-asynchronous-api
+  const normalizedUrl = normalizeUrl(imageUrl)
+  if (exifCache.has(normalizedUrl)) {
+    return exifCache.get(normalizedUrl)
+  }
   const tags = await ExifReader.load(imageUrl)
-  return parseExifData(tags)
+  const data = parseExifData(tags)
+  exifCache.set(normalizedUrl, data)
+  return data
 }
 
 const loadExif = async (event, folder, image) => {
@@ -389,7 +372,7 @@ const nextImage = () => {
 }
 
 const prevImage = () => {
-  lightbox.value.currentIndex = 
+  lightbox.value.currentIndex =
     (lightbox.value.currentIndex - 1 + lightbox.value.images.length) % lightbox.value.images.length
   lightbox.value.currentImage = lightbox.value.images[lightbox.value.currentIndex]
   prepareLightboxExif(lightbox.value.currentImage)
@@ -492,6 +475,7 @@ onBeforeUnmount(() => {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -590,6 +574,8 @@ onBeforeUnmount(() => {
   height: 100%;
   object-fit: cover;
   transition: transform 0.4s ease;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .image-item:hover .gallery-image {
@@ -631,8 +617,37 @@ onBeforeUnmount(() => {
   min-height: 1.1rem;
 }
 
-.exif-tooltip--below {
-  padding: 0 0.1rem;
+.exif-tooltip--overlay {
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+.image-corner-stack {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: calc(100% - 1.5rem);
+  pointer-events: none;
+}
+
+.image-watermark {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
 }
 
 .exif-loading,
@@ -693,7 +708,42 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn 0.3s ease;
+}
+
+.lightbox-fade-enter-active,
+.lightbox-fade-leave-active {
+  transition: opacity 0.28s ease;
+}
+
+.lightbox-fade-enter-from,
+.lightbox-fade-leave-to {
+  opacity: 0;
+}
+
+.lightbox-fade-enter-active .lightbox-content,
+.lightbox-fade-leave-active .lightbox-content {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.lightbox-fade-enter-from .lightbox-content,
+.lightbox-fade-leave-to .lightbox-content {
+  transform: scale(0.96);
+  opacity: 0;
+}
+
+.lightbox-swap-enter-active,
+.lightbox-swap-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.lightbox-swap-enter-from {
+  opacity: 0;
+  transform: translateX(12px) scale(0.98);
+}
+
+.lightbox-swap-leave-to {
+  opacity: 0;
+  transform: translateX(-12px) scale(0.98);
 }
 
 .lightbox-content {
@@ -709,6 +759,31 @@ onBeforeUnmount(() => {
   max-height: 80vh;
   object-fit: contain;
   border-radius: 4px;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.lightbox-image-wrap {
+  position: relative;
+  max-width: 100%;
+  max-height: 80vh;
+}
+
+.lightbox-watermark {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
 }
 
 .lightbox-panel {
@@ -833,6 +908,18 @@ onBeforeUnmount(() => {
   right: 2rem;
 }
 
+@media (prefers-reduced-motion: reduce) {
+
+  .lightbox-fade-enter-active,
+  .lightbox-fade-leave-active,
+  .lightbox-fade-enter-active .lightbox-content,
+  .lightbox-fade-leave-active .lightbox-content,
+  .lightbox-swap-enter-active,
+  .lightbox-swap-leave-active {
+    transition: none;
+  }
+}
+
 @media (max-width: 768px) {
   .event-name {
     font-size: 2rem;
@@ -849,6 +936,16 @@ onBeforeUnmount(() => {
   }
 
   .exif-tooltip {
+    font-size: 0.65rem;
+  }
+
+  .image-watermark {
+    font-size: 0.6rem;
+  }
+
+  .lightbox-watermark {
+    left: 0.75rem;
+    bottom: 0.75rem;
     font-size: 0.65rem;
   }
 
