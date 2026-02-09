@@ -227,6 +227,8 @@ const loadExif = async (event, folder, image) => {
 
   try {
     // Load EXIF data using ExifReader
+    // ExifReader.load() supports URLs in browser context and will reuse cached images
+    // See: https://github.com/mattiasw/ExifReader#let-exifreader-load-the-file-asynchronous-api
     const tags = await ExifReader.load(imgElement.src)
     
     const make = tags.Make?.description
