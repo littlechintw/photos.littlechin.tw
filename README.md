@@ -97,6 +97,31 @@ Edit `public/data/portfolio.json` to customize your portfolio:
 - `maxImages`: (Optional) Override global setting for this specific event
 - `images`: Array of image filenames in the event folder
 
+**Date Format Examples:**
+
+```json
+{
+  "events": [
+    {
+      "name": "Single Day Event",
+      "date": "2024-01-15"
+    },
+    {
+      "name": "Multi-day Event",
+      "date": "2024-01-15 to 2024-01-17"
+    },
+    {
+      "name": "Month-long Exhibition",
+      "date": {"start": "2024-01", "end": "2024-02", "format": "year-month"}
+    },
+    {
+      "name": "Annual Event",
+      "date": "2024"
+    }
+  ]
+}
+```
+
 ## Adding Events
 
 1. Create a folder in `imgs/` with your event name (e.g., `imgs/wedding-2024/`)

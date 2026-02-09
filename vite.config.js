@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { copyFileSync, mkdirSync, readdirSync, statSync } from 'fs'
-import { join, dirname } from 'path'
+import { copyFileSync, mkdirSync, readdirSync } from 'fs'
+import { join } from 'path'
 
 // Plugin to copy imgs directory to dist
 function copyImgsPlugin() {
