@@ -2,7 +2,10 @@
   <div class="app">
     <Header :info="portfolioData.info" />
     <main class="main-content">
-      <EventGallery :events="portfolioData.events" />
+      <EventGallery 
+        :events="portfolioData.events" 
+        :maxImages="portfolioData.settings?.maxImagesPerEvent || 6"
+      />
     </main>
     <Footer :info="portfolioData.info" />
   </div>
@@ -17,9 +20,10 @@ import Footer from './components/Footer.vue'
 const portfolioData = ref({
   info: {
     name: '',
-    title: '',
-    description: '',
     links: []
+  },
+  settings: {
+    maxImagesPerEvent: 6
   },
   events: []
 })

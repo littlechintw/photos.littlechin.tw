@@ -1,11 +1,7 @@
 <template>
   <header class="header">
     <div class="header-content">
-      <div class="header-info">
-        <h1 class="header-name">{{ info.name }}</h1>
-        <p class="header-title">{{ info.title }}</p>
-        <p class="header-description">{{ info.description }}</p>
-      </div>
+      <h1 class="header-name">{{ info.name }}</h1>
       <nav class="header-links" v-if="info.links && info.links.length">
         <a
           v-for="link in info.links"
@@ -17,7 +13,6 @@
           class="link-item"
         >
           <span class="link-icon">{{ getIcon(link.icon) }}</span>
-          <span class="link-name">{{ link.name }}</span>
         </a>
       </nav>
     </div>
@@ -32,8 +27,6 @@ defineProps({
     type: Object,
     default: () => ({
       name: '',
-      title: '',
-      description: '',
       links: []
     })
   }
@@ -55,70 +48,47 @@ const getIcon = (iconName) => {
 
 <style scoped>
 .header {
-  padding: 4rem 2rem;
-  text-align: center;
-  background: linear-gradient(180deg, #000000 0%, #0a0a0a 100%);
+  padding: 2rem 2rem 1.5rem;
+  background: #000000;
   border-bottom: 1px solid #1a1a1a;
 }
 
 .header-content {
-  max-width: 800px;
+  max-width: 1400px;
   margin: 0 auto;
-}
-
-.header-info {
-  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .header-name {
-  font-size: 3.5rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #ffffff 0%, #a0a0a0 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.header-title {
-  font-size: 1.5rem;
-  color: #999999;
-  margin-bottom: 1rem;
-  font-weight: 300;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.header-description {
-  font-size: 1.1rem;
-  color: #cccccc;
-  line-height: 1.6;
-  font-weight: 300;
+  font-size: 1.8rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #ffffff;
 }
 
 .header-links {
   display: flex;
-  gap: 1.5rem;
-  justify-content: center;
-  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
 }
 
 .link-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
   background-color: #1a1a1a;
-  border-radius: 8px;
+  border-radius: 50%;
   transition: all 0.3s ease;
   border: 1px solid #2a2a2a;
 }
 
 .link-item:hover {
   background-color: #2a2a2a;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
   opacity: 1;
 }
 
@@ -126,34 +96,23 @@ const getIcon = (iconName) => {
   font-size: 1.2rem;
 }
 
-.link-name {
-  font-size: 0.95rem;
-  font-weight: 500;
-}
-
 @media (max-width: 768px) {
   .header {
-    padding: 3rem 1rem;
+    padding: 1.5rem 1rem;
   }
 
-  .header-name {
-    font-size: 2.5rem;
-  }
-
-  .header-title {
-    font-size: 1.2rem;
-  }
-
-  .header-description {
-    font-size: 1rem;
-  }
-
-  .header-links {
+  .header-content {
+    flex-direction: column;
     gap: 1rem;
   }
 
+  .header-name {
+    font-size: 1.5rem;
+  }
+
   .link-item {
-    padding: 0.6rem 1.2rem;
+    width: 36px;
+    height: 36px;
   }
 }
 </style>

@@ -14,20 +14,58 @@
       
       <div class="images-grid">
         <div
-          v-for="(image, index) in event.images"
+          v-for="(image, index) in getDisplayImages(event)"
           :key="index"
           class="image-item"
           @click="openLightbox(event, index)"
+          @mouseenter="loadExif($event, event.folder, image)"
+          @mouseleave="hideExif"
         >
           <img
             :src="getImagePath(event.folder, image)"
             :alt="`${event.name} - Photo ${index + 1}`"
             loading="lazy"
             class="gallery-image"
+            :ref="el => imageRefs[getImagePath(event.folder, image)] = el"
           />
           <div class="image-overlay">
             <span class="zoom-icon">🔍</span>
           </div>
+          <div v-if="exifData.visible && exifData.imagePath === getImagePath(event.folder, image)" 
+               class="exif-tooltip">
+            <div v-if="exifData.loading" class="exif-loading">Loading EXIF...</div>
+            <div v-else-if="exifData.data" class="exif-content">
+              <div v-if="exifData.data.camera" class="exif-item">
+                📷 {{ exifData.data.camera }}
+              </div>
+              <div v-if="exifData.data.lens" class="exif-item">
+                🔍 {{ exifData.data.lens }}
+              </div>
+              <div v-if="exifData.data.settings" class="exif-item">
+                ⚙️ {{ exifData.data.settings }}
+              </div>
+              <div v-if="exifData.data.date" class="exif-item">
+                📅 {{ exifData.data.date }}
+              </div>
+            </div>
+            <div v-else class="exif-no-data">No EXIF data available</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- View Full Album Button -->
+      <div v-if="shouldShowAlbumLink(event)" class="album-link-container">
+        <a 
+          v-if="event.albumUrl"
+          :href="event.albumUrl" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          class="album-link"
+        >
+          View Full Album ({{ event.images.length }} photos) →
+        </a>
+        <div v-else class="album-info">
+          Showing {{ getDisplayImages(event).length }} of {{ event.images.length }} photos
         </div>
       </div>
     </div>
@@ -66,11 +104,16 @@
 
 <script setup>
 import { ref, defineProps } from 'vue'
+import EXIF from 'exif-js'
 
-defineProps({
+const props = defineProps({
   events: {
     type: Array,
     default: () => []
+  },
+  maxImages: {
+    type: Number,
+    default: 6
   }
 })
 
@@ -82,8 +125,27 @@ const lightbox = ref({
   images: []
 })
 
+const exifData = ref({
+  visible: false,
+  loading: false,
+  imagePath: '',
+  data: null
+})
+
+const imageRefs = ref({})
+
 const getImagePath = (folder, image) => {
   return `/imgs/${folder}/${image}`
+}
+
+const getDisplayImages = (event) => {
+  const max = event.maxImages || props.maxImages
+  return event.images.slice(0, max)
+}
+
+const shouldShowAlbumLink = (event) => {
+  const max = event.maxImages || props.maxImages
+  return event.images.length > max
 }
 
 const formatDate = (dateString) => {
@@ -95,13 +157,100 @@ const formatDate = (dateString) => {
   })
 }
 
+const loadExif = async (event, folder, image) => {
+  const imagePath = getImagePath(folder, image)
+  exifData.value = {
+    visible: true,
+    loading: true,
+    imagePath,
+    data: null
+  }
+
+  const imgElement = imageRefs.value[imagePath]
+  if (!imgElement) {
+    exifData.value.loading = false
+    return
+  }
+
+  try {
+    EXIF.getData(imgElement, function() {
+      const make = EXIF.getTag(this, 'Make')
+      const model = EXIF.getTag(this, 'Model')
+      const lens = EXIF.getTag(this, 'LensModel')
+      const focalLength = EXIF.getTag(this, 'FocalLength')
+      const fNumber = EXIF.getTag(this, 'FNumber')
+      const iso = EXIF.getTag(this, 'ISOSpeedRatings')
+      const exposureTime = EXIF.getTag(this, 'ExposureTime')
+      const dateTime = EXIF.getTag(this, 'DateTimeOriginal')
+
+      const hasData = make || model || lens || focalLength || fNumber || iso || exposureTime || dateTime
+
+      if (hasData) {
+        const data = {}
+        
+        if (make && model) {
+          data.camera = `${make} ${model}`.trim()
+        } else if (model) {
+          data.camera = model
+        }
+
+        if (lens) {
+          data.lens = lens
+        }
+
+        const settings = []
+        if (focalLength) {
+          const fl = typeof focalLength === 'object' ? 
+            (focalLength.numerator / focalLength.denominator) : focalLength
+          settings.push(`${Math.round(fl)}mm`)
+        }
+        if (fNumber) {
+          const f = typeof fNumber === 'object' ? 
+            (fNumber.numerator / fNumber.denominator) : fNumber
+          settings.push(`f/${f.toFixed(1)}`)
+        }
+        if (exposureTime) {
+          const exp = typeof exposureTime === 'object' ? 
+            `${exposureTime.numerator}/${exposureTime.denominator}` : exposureTime
+          settings.push(`${exp}s`)
+        }
+        if (iso) {
+          settings.push(`ISO ${iso}`)
+        }
+        if (settings.length > 0) {
+          data.settings = settings.join(' · ')
+        }
+
+        if (dateTime) {
+          data.date = dateTime
+        }
+
+        exifData.value = {
+          ...exifData.value,
+          loading: false,
+          data
+        }
+      } else {
+        exifData.value.loading = false
+      }
+    })
+  } catch (error) {
+    console.error('Error reading EXIF data:', error)
+    exifData.value.loading = false
+  }
+}
+
+const hideExif = () => {
+  exifData.value.visible = false
+}
+
 const openLightbox = (event, index) => {
   lightbox.value = {
     open: true,
     currentIndex: index,
-    currentImage: getImagePath(event.folder, event.images[index]),
+    currentImage: getImagePath(event.folder, getDisplayImages(event)[index]),
     eventName: event.name,
-    images: event.images.map(img => getImagePath(event.folder, img))
+    images: getDisplayImages(event).map(img => getImagePath(event.folder, img))
   }
   document.body.style.overflow = 'hidden'
 }
@@ -230,6 +379,67 @@ const prevImage = () => {
   color: #ffffff;
 }
 
+/* EXIF Tooltip */
+.exif-tooltip {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.9);
+  color: #ffffff;
+  padding: 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  z-index: 10;
+  backdrop-filter: blur(10px);
+}
+
+.exif-loading,
+.exif-no-data {
+  color: #999999;
+  font-style: italic;
+}
+
+.exif-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.exif-item {
+  color: #cccccc;
+}
+
+/* Album Link */
+.album-link-container {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.album-link {
+  display: inline-block;
+  padding: 0.75rem 2rem;
+  background-color: #1a1a1a;
+  color: #ffffff;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: 1px solid #2a2a2a;
+}
+
+.album-link:hover {
+  background-color: #2a2a2a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+}
+
+.album-info {
+  color: #999999;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
 /* Lightbox */
 .lightbox {
   position: fixed;
@@ -337,6 +547,11 @@ const prevImage = () => {
   .images-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 1rem;
+  }
+
+  .exif-tooltip {
+    font-size: 0.65rem;
+    padding: 0.5rem;
   }
 
   .lightbox-nav {

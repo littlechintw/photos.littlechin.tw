@@ -1,12 +1,15 @@
 # Photography Portfolio
 
-A modern, dark-themed photography portfolio website built with Vue 3 and Vite, designed for showcasing photography events and works.
+A modern, dark-themed photography portfolio website built with Vue 3 and Vite, designed for showcasing photography works with a focus on the portfolio itself.
 
 ## Features
 
 - 🎨 **Dark Theme**: Professional black background with elegant design
 - 📱 **Responsive**: Fully responsive design that works on all devices
 - 🖼️ **Image Gallery**: Beautiful grid layout with lightbox viewer
+- 📊 **EXIF Data Display**: Hover over images to view camera settings and metadata
+- 🔗 **Album Links**: Link to full albums (e.g., Google Photos) when showing limited previews
+- 🎯 **Limited Display**: Show only a subset of images per event (configurable)
 - 🔧 **Easy to Configure**: Simple JSON-based configuration
 - 🚀 **Fast**: Built with Vite for optimal performance
 - 📦 **CI/CD**: Automated deployment to GitHub Pages
@@ -19,13 +22,13 @@ A modern, dark-themed photography portfolio website built with Vue 3 and Vite, d
 │       └── portfolio.json    # Portfolio configuration
 ├── imgs/                     # Image storage
 │   └── [event-name]/        # Event-specific folders
-│       ├── cover.jpg
 │       ├── photo1.jpg
+│       ├── photo2.jpg
 │       └── ...
 ├── src/
 │   ├── components/
-│   │   ├── Header.vue       # Header with profile info
-│   │   ├── EventGallery.vue # Event gallery component
+│   │   ├── Header.vue       # Minimal header with portfolio name and links
+│   │   ├── EventGallery.vue # Event gallery with EXIF display
 │   │   └── Footer.vue       # Footer component
 │   ├── App.vue              # Main app component
 │   ├── main.js              # App entry point
@@ -43,9 +46,7 @@ Edit `public/data/portfolio.json` to customize your portfolio:
 ```json
 {
   "info": {
-    "name": "Your Name",
-    "title": "Photographer",
-    "description": "Capturing moments, creating memories",
+    "name": "Photography Portfolio",
     "links": [
       {
         "name": "Instagram",
@@ -53,6 +54,9 @@ Edit `public/data/portfolio.json` to customize your portfolio:
         "icon": "instagram"
       }
     ]
+  },
+  "settings": {
+    "maxImagesPerEvent": 6
   },
   "events": [
     {
@@ -62,20 +66,49 @@ Edit `public/data/portfolio.json` to customize your portfolio:
       "location": "City, Country",
       "description": "Event description",
       "folder": "event-folder-name",
-      "coverImage": "cover.jpg",
-      "images": ["photo1.jpg", "photo2.jpg"]
+      "albumUrl": "https://photos.google.com/share/your-album-link",
+      "maxImages": 6,
+      "images": ["photo1.jpg", "photo2.jpg", "..."]
     }
   ]
 }
 ```
 
+### Configuration Fields
+
+**Global Settings:**
+- `settings.maxImagesPerEvent`: Default number of images to display per event (default: 6)
+
+**Event Fields:**
+- `id`: Unique identifier for the event
+- `name`: Event name displayed as the heading
+- `date`: Event date (ISO format recommended)
+- `location`: Event location
+- `description`: Brief description of the event
+- `folder`: Name of the folder in `imgs/` containing event photos
+- `albumUrl`: (Optional) Link to full album (e.g., Google Photos)
+- `maxImages`: (Optional) Override global setting for this specific event
+- `images`: Array of image filenames in the event folder
+
 ## Adding Events
 
 1. Create a folder in `imgs/` with your event name (e.g., `imgs/wedding-2024/`)
-2. Add your photos to the folder
+2. Add your photos to the folder (with EXIF data for camera info display)
 3. Update `public/data/portfolio.json` with event details:
    - Set `folder` to match your folder name
    - List all image filenames in the `images` array
+   - Add `albumUrl` to link to the full album on Google Photos or similar
+   - Set `maxImages` if you want to override the default limit for this event
+
+## EXIF Data Display
+
+When you hover over images, the portfolio will automatically extract and display:
+- Camera make and model
+- Lens information
+- Camera settings (focal length, aperture, shutter speed, ISO)
+- Date/time the photo was taken
+
+**Note:** EXIF data must be embedded in the image files. Use tools like Adobe Lightroom or maintain EXIF data when exporting photos.
 
 ## Development
 
