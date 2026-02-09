@@ -1,0 +1,35 @@
+{
+  "info": {
+    "name": "Your Name",
+    "title": "Photographer",
+    "description": "Capturing moments, creating memories",
+    "links": [
+      {
+        "name": "Instagram",
+        "url": "https://instagram.com/yourhandle",
+        "icon": "instagram"
+      },
+      {
+        "name": "Email",
+        "url": "mailto:your.email@example.com",
+        "icon": "email"
+      }
+    ]
+  },
+  "events": [
+    {
+      "id": "sample-event",
+      "name": "Sample Event",
+      "date": "2024-01-15",
+      "location": "City, Country",
+      "description": "A brief description of this photography event or session",
+      "folder": "sample-event",
+      "coverImage": "cover.jpg",
+      "images": [
+        "photo1.jpg",
+        "photo2.jpg",
+        "photo3.jpg"
+      ]
+    }
+  ]
+}
