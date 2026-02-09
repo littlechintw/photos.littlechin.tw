@@ -104,7 +104,7 @@
 
 <script setup>
 import { ref, defineProps } from 'vue'
-import EXIF from 'exif-js'
+import ExifReader from 'exifreader'
 
 const props = defineProps({
   events: {
@@ -210,14 +210,6 @@ const formatSingleDate = (dateString, format) => {
   }
 }
 
-// Helper function to parse EXIF fractional values
-const parseExifValue = (value) => {
-  if (typeof value === 'object' && value.numerator && value.denominator) {
-    return value.numerator / value.denominator
-  }
-  return value
-}
-
 const loadExif = async (event, folder, image) => {
   const imagePath = getImagePath(folder, image)
   exifData.value = {
@@ -234,66 +226,67 @@ const loadExif = async (event, folder, image) => {
   }
 
   try {
-    // Using traditional function because EXIF.getData binds 'this' to the image element
-    EXIF.getData(imgElement, function() {
-      const make = EXIF.getTag(this, 'Make')
-      const model = EXIF.getTag(this, 'Model')
-      const lens = EXIF.getTag(this, 'LensModel')
-      const focalLength = EXIF.getTag(this, 'FocalLength')
-      const fNumber = EXIF.getTag(this, 'FNumber')
-      const iso = EXIF.getTag(this, 'ISOSpeedRatings')
-      const exposureTime = EXIF.getTag(this, 'ExposureTime')
-      const dateTime = EXIF.getTag(this, 'DateTimeOriginal')
+    // Load EXIF data using ExifReader
+    // ExifReader.load() supports URLs in browser context and will reuse cached images
+    // See: https://github.com/mattiasw/ExifReader#let-exifreader-load-the-file-asynchronous-api
+    const tags = await ExifReader.load(imgElement.src)
+    
+    const make = tags.Make?.description
+    const model = tags.Model?.description
+    const lens = tags.LensModel?.description
+    const focalLength = tags.FocalLength?.description
+    const fNumber = tags.FNumber?.description
+    const iso = tags.ISOSpeedRatings?.description
+    const exposureTime = tags.ExposureTime?.description
+    const dateTime = tags.DateTimeOriginal?.description
 
-      const hasData = make || model || lens || focalLength || fNumber || iso || exposureTime || dateTime
+    const hasData = make || model || lens || focalLength || fNumber || iso || exposureTime || dateTime
 
-      if (hasData) {
-        const data = {}
-        
-        if (make && model) {
-          data.camera = `${make} ${model}`.trim()
-        } else if (model) {
-          data.camera = model
-        }
-
-        if (lens) {
-          data.lens = lens
-        }
-
-        const settings = []
-        if (focalLength) {
-          const fl = parseExifValue(focalLength)
-          settings.push(`${Math.round(fl)}mm`)
-        }
-        if (fNumber) {
-          const f = parseExifValue(fNumber)
-          settings.push(`f/${f.toFixed(1)}`)
-        }
-        if (exposureTime) {
-          const exp = typeof exposureTime === 'object' ? 
-            `${exposureTime.numerator}/${exposureTime.denominator}` : exposureTime
-          settings.push(`${exp}s`)
-        }
-        if (iso) {
-          settings.push(`ISO ${iso}`)
-        }
-        if (settings.length > 0) {
-          data.settings = settings.join(' · ')
-        }
-
-        if (dateTime) {
-          data.date = dateTime
-        }
-
-        exifData.value = {
-          ...exifData.value,
-          loading: false,
-          data
-        }
-      } else {
-        exifData.value.loading = false
+    if (hasData) {
+      const data = {}
+      
+      if (make && model) {
+        data.camera = `${make} ${model}`.trim()
+      } else if (model) {
+        data.camera = model
       }
-    })
+
+      if (lens) {
+        data.lens = lens
+      }
+
+      const settings = []
+      if (focalLength) {
+        // focalLength is already formatted as "50 mm" by ExifReader
+        settings.push(focalLength.replace(' mm', 'mm'))
+      }
+      if (fNumber) {
+        // fNumber is already formatted as "f/2.8" by ExifReader
+        settings.push(fNumber)
+      }
+      if (exposureTime) {
+        // exposureTime is already formatted like "1/100" by ExifReader
+        settings.push(`${exposureTime}s`)
+      }
+      if (iso) {
+        settings.push(`ISO ${iso}`)
+      }
+      if (settings.length > 0) {
+        data.settings = settings.join(' · ')
+      }
+
+      if (dateTime) {
+        data.date = dateTime
+      }
+
+      exifData.value = {
+        ...exifData.value,
+        loading: false,
+        data
+      }
+    } else {
+      exifData.value.loading = false
+    }
   } catch (error) {
     console.error('Error reading EXIF data:', error)
     exifData.value.loading = false
