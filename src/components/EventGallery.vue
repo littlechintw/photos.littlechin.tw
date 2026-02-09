@@ -26,7 +26,7 @@
             :alt="`${event.name} - Photo ${index + 1}`"
             loading="lazy"
             class="gallery-image"
-            :ref="el => imageRefs[getImagePath(event.folder, image)] = el"
+            :ref="el => { if (el) imageRefs.set(getImagePath(event.folder, image), el) }"
           />
           <div class="image-overlay">
             <span class="zoom-icon">🔍</span>
@@ -132,7 +132,7 @@ const exifData = ref({
   data: null
 })
 
-const imageRefs = ref({})
+const imageRefs = ref(new Map())
 
 const getImagePath = (folder, image) => {
   return `/imgs/${folder}/${image}`
@@ -157,6 +157,14 @@ const formatDate = (dateString) => {
   })
 }
 
+// Helper function to parse EXIF fractional values
+const parseExifValue = (value) => {
+  if (typeof value === 'object' && value.numerator && value.denominator) {
+    return value.numerator / value.denominator
+  }
+  return value
+}
+
 const loadExif = async (event, folder, image) => {
   const imagePath = getImagePath(folder, image)
   exifData.value = {
@@ -166,13 +174,14 @@ const loadExif = async (event, folder, image) => {
     data: null
   }
 
-  const imgElement = imageRefs.value[imagePath]
+  const imgElement = imageRefs.value.get(imagePath)
   if (!imgElement) {
     exifData.value.loading = false
     return
   }
 
   try {
+    // Using traditional function because EXIF.getData binds 'this' to the image element
     EXIF.getData(imgElement, function() {
       const make = EXIF.getTag(this, 'Make')
       const model = EXIF.getTag(this, 'Model')
@@ -200,13 +209,11 @@ const loadExif = async (event, folder, image) => {
 
         const settings = []
         if (focalLength) {
-          const fl = typeof focalLength === 'object' ? 
-            (focalLength.numerator / focalLength.denominator) : focalLength
+          const fl = parseExifValue(focalLength)
           settings.push(`${Math.round(fl)}mm`)
         }
         if (fNumber) {
-          const f = typeof fNumber === 'object' ? 
-            (fNumber.numerator / fNumber.denominator) : fNumber
+          const f = parseExifValue(fNumber)
           settings.push(`f/${f.toFixed(1)}`)
         }
         if (exposureTime) {
@@ -245,12 +252,13 @@ const hideExif = () => {
 }
 
 const openLightbox = (event, index) => {
+  const displayImages = getDisplayImages(event)
   lightbox.value = {
     open: true,
     currentIndex: index,
-    currentImage: getImagePath(event.folder, getDisplayImages(event)[index]),
+    currentImage: getImagePath(event.folder, displayImages[index]),
     eventName: event.name,
-    images: getDisplayImages(event).map(img => getImagePath(event.folder, img))
+    images: displayImages.map(img => getImagePath(event.folder, img))
   }
   document.body.style.overflow = 'hidden'
 }
