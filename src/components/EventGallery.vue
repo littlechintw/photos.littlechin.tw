@@ -2,7 +2,18 @@
   <div class="event-gallery">
     <div v-for="event in events" :key="event.id" class="event-section">
       <div class="event-header">
-        <h2 class="event-name">{{ event.name }}</h2>
+        <div class="event-title-row">
+          <h2 class="event-name">{{ event.name }}</h2>
+          <a
+            v-if="event.albumUrl"
+            class="event-title-link"
+            :href="event.albumUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Album ↗
+          </a>
+        </div>
         <div class="event-meta">
           <span class="event-date">📅 {{ formatDate(event.date) }}</span>
           <span class="event-location">📍 {{ event.location }}</span>
@@ -16,39 +27,34 @@
         <div
           v-for="(image, index) in getDisplayImages(event)"
           :key="index"
-          class="image-item"
-          @click="openLightbox(event, index)"
+          class="image-card"
           @mouseenter="loadExif($event, event.folder, image)"
           @mouseleave="hideExif"
         >
-          <img
-            :src="getImagePath(event.folder, image)"
-            :alt="`${event.name} - Photo ${index + 1}`"
-            loading="lazy"
-            class="gallery-image"
-            :ref="el => { if (el) imageRefs.set(getImagePath(event.folder, image), el) }"
-          />
-          <div class="image-overlay">
-            <span class="zoom-icon">🔍</span>
-          </div>
-          <div v-if="exifData.visible && exifData.imagePath === getImagePath(event.folder, image)" 
-               class="exif-tooltip">
-            <div v-if="exifData.loading" class="exif-loading">Loading EXIF...</div>
-            <div v-else-if="exifData.data" class="exif-content">
-              <div v-if="exifData.data.camera" class="exif-item">
-                📷 {{ exifData.data.camera }}
-              </div>
-              <div v-if="exifData.data.lens" class="exif-item">
-                🔍 {{ exifData.data.lens }}
-              </div>
-              <div v-if="exifData.data.settings" class="exif-item">
-                ⚙️ {{ exifData.data.settings }}
-              </div>
-              <div v-if="exifData.data.date" class="exif-item">
-                📅 {{ exifData.data.date }}
-              </div>
+          <div
+            class="image-item"
+            @click="openLightbox(event, index)"
+          >
+            <img
+              :src="getImagePath(event.folder, image)"
+              :alt="`${event.name} - Photo ${index + 1}`"
+              loading="lazy"
+              class="gallery-image"
+              :ref="el => { if (el) imageRefs.set(getImagePath(event.folder, image), el) }"
+            />
+            <div class="image-overlay">
+              <span class="zoom-dot" aria-hidden="true"></span>
             </div>
-            <div v-else class="exif-no-data">No EXIF data available</div>
+          </div>
+          <div
+            v-if="exifData.visible && exifData.imagePath === getImagePath(event.folder, image)"
+            class="exif-tooltip exif-tooltip--below"
+          >
+            <div v-if="exifData.loading" class="exif-loading">Loading EXIF...</div>
+            <div v-else-if="exifData.data?.settings" class="exif-content">
+              <div class="exif-item">{{ exifData.data.settings }}</div>
+            </div>
+            <div v-else class="exif-no-data">No EXIF data</div>
           </div>
         </div>
       </div>
@@ -85,11 +91,40 @@
           :src="lightbox.currentImage"
           :alt="`${lightbox.eventName} - Photo ${lightbox.currentIndex + 1}`"
           class="lightbox-image"
+          ref="lightboxImageRef"
+          @load="handleLightboxImageLoad"
         />
-        <div class="lightbox-info">
-          <h3>{{ lightbox.eventName }}</h3>
-          <p>{{ lightbox.currentIndex + 1 }} / {{ lightbox.images.length }}</p>
-        </div>
+        <aside class="lightbox-panel">
+          <div class="lightbox-info">
+            <h3>{{ lightbox.eventName }}</h3>
+            <p>{{ lightbox.currentIndex + 1 }} / {{ lightbox.images.length }}</p>
+          </div>
+          <div class="lightbox-exif-card">
+            <div class="lightbox-exif-header">
+              <h4>EXIF INFO</h4>
+            </div>
+            <p v-if="lightboxExif.loading" class="lightbox-exif">Loading EXIF...</p>
+            <div v-else-if="lightboxExif.data" class="lightbox-exif-details">
+              <p v-if="lightboxExif.data.camera" class="lightbox-exif">
+                <span class="lightbox-exif-label">📷 Camera</span>
+                <span class="lightbox-exif-value">{{ lightboxExif.data.camera }}</span>
+              </p>
+              <p v-if="lightboxExif.data.lens" class="lightbox-exif">
+                <span class="lightbox-exif-label">🔍 Lens</span>
+                <span class="lightbox-exif-value">{{ lightboxExif.data.lens }}</span>
+              </p>
+              <p v-if="lightboxExif.data.settings" class="lightbox-exif">
+                <span class="lightbox-exif-label">⚙️ Settings</span>
+                <span class="lightbox-exif-value">{{ lightboxExif.data.settings }}</span>
+              </p>
+              <p v-if="lightboxExif.data.date" class="lightbox-exif">
+                <span class="lightbox-exif-label">🕒 Date</span>
+                <span class="lightbox-exif-value">{{ lightboxExif.data.date }}</span>
+              </p>
+            </div>
+            <p v-else class="lightbox-exif">No EXIF data</p>
+          </div>
+        </aside>
       </div>
       <button 
         class="lightbox-nav lightbox-next" 
@@ -103,7 +138,7 @@
 </template>
 
 <script setup>
-import { ref, defineProps } from 'vue'
+import { ref, defineProps, watch, onBeforeUnmount, nextTick } from 'vue'
 import ExifReader from 'exifreader'
 
 const props = defineProps({
@@ -132,10 +167,26 @@ const exifData = ref({
   data: null
 })
 
+const lightboxExif = ref({
+  loading: false,
+  data: null,
+  imageUrl: ''
+})
+
+const lightboxImageRef = ref(null)
+
 const imageRefs = ref(new Map())
 
 const getImagePath = (folder, image) => {
   return `/imgs/${folder}/${image}`
+}
+
+const normalizeUrl = (url) => {
+  try {
+    return new URL(url, window.location.href).href
+  } catch (error) {
+    return url
+  }
 }
 
 const getDisplayImages = (event) => {
@@ -210,6 +261,72 @@ const formatSingleDate = (dateString, format) => {
   }
 }
 
+const parseExifSettings = (tags) => {
+  const focalLength = tags.FocalLength?.description
+  const fNumber = tags.FNumber?.description
+  const iso = tags.ISOSpeedRatings?.description
+  const exposureTime = tags.ExposureTime?.description
+  const settings = []
+
+  if (focalLength) {
+    // focalLength is already formatted as "50 mm" by ExifReader
+    settings.push(focalLength.replace(' mm', 'mm'))
+  }
+  if (fNumber) {
+    // fNumber is already formatted as "f/2.8" by ExifReader
+    settings.push(fNumber)
+  }
+  if (exposureTime) {
+    // exposureTime is already formatted like "1/100" by ExifReader
+    settings.push(`${exposureTime}s`)
+  }
+  if (iso) {
+    settings.push(`ISO ${iso}`)
+  }
+
+  if (settings.length === 0) {
+    return null
+  }
+
+  return settings.join(' · ')
+}
+
+const parseExifData = (tags) => {
+  const make = tags.Make?.description
+  const model = tags.Model?.description
+  const lens = tags.LensModel?.description
+  const dateTime = tags.DateTimeOriginal?.description
+  const settings = parseExifSettings(tags)
+  const data = {}
+
+  if (make && model) {
+    data.camera = `${make} ${model}`.trim()
+  } else if (model) {
+    data.camera = model
+  }
+
+  if (lens) {
+    data.lens = lens
+  }
+
+  if (settings) {
+    data.settings = settings
+  }
+
+  if (dateTime) {
+    data.date = dateTime
+  }
+
+  return Object.keys(data).length > 0 ? data : null
+}
+
+const loadExifFromUrl = async (imageUrl) => {
+  // ExifReader.load() supports URLs in browser context and will reuse cached images
+  // See: https://github.com/mattiasw/ExifReader#let-exifreader-load-the-file-asynchronous-api
+  const tags = await ExifReader.load(imageUrl)
+  return parseExifData(tags)
+}
+
 const loadExif = async (event, folder, image) => {
   const imagePath = getImagePath(folder, image)
   exifData.value = {
@@ -226,66 +343,11 @@ const loadExif = async (event, folder, image) => {
   }
 
   try {
-    // Load EXIF data using ExifReader
-    // ExifReader.load() supports URLs in browser context and will reuse cached images
-    // See: https://github.com/mattiasw/ExifReader#let-exifreader-load-the-file-asynchronous-api
-    const tags = await ExifReader.load(imgElement.src)
-    
-    const make = tags.Make?.description
-    const model = tags.Model?.description
-    const lens = tags.LensModel?.description
-    const focalLength = tags.FocalLength?.description
-    const fNumber = tags.FNumber?.description
-    const iso = tags.ISOSpeedRatings?.description
-    const exposureTime = tags.ExposureTime?.description
-    const dateTime = tags.DateTimeOriginal?.description
-
-    const hasData = make || model || lens || focalLength || fNumber || iso || exposureTime || dateTime
-
-    if (hasData) {
-      const data = {}
-      
-      if (make && model) {
-        data.camera = `${make} ${model}`.trim()
-      } else if (model) {
-        data.camera = model
-      }
-
-      if (lens) {
-        data.lens = lens
-      }
-
-      const settings = []
-      if (focalLength) {
-        // focalLength is already formatted as "50 mm" by ExifReader
-        settings.push(focalLength.replace(' mm', 'mm'))
-      }
-      if (fNumber) {
-        // fNumber is already formatted as "f/2.8" by ExifReader
-        settings.push(fNumber)
-      }
-      if (exposureTime) {
-        // exposureTime is already formatted like "1/100" by ExifReader
-        settings.push(`${exposureTime}s`)
-      }
-      if (iso) {
-        settings.push(`ISO ${iso}`)
-      }
-      if (settings.length > 0) {
-        data.settings = settings.join(' · ')
-      }
-
-      if (dateTime) {
-        data.date = dateTime
-      }
-
-      exifData.value = {
-        ...exifData.value,
-        loading: false,
-        data
-      }
-    } else {
-      exifData.value.loading = false
+    const data = await loadExifFromUrl(imgElement.src)
+    exifData.value = {
+      ...exifData.value,
+      loading: false,
+      data: data?.settings ? { settings: data.settings } : null
     }
   } catch (error) {
     console.error('Error reading EXIF data:', error)
@@ -306,24 +368,113 @@ const openLightbox = (event, index) => {
     eventName: event.name,
     images: displayImages.map(img => getImagePath(event.folder, img))
   }
+  prepareLightboxExif(lightbox.value.currentImage)
   document.body.style.overflow = 'hidden'
 }
 
 const closeLightbox = () => {
   lightbox.value.open = false
   document.body.style.overflow = 'auto'
+  lightboxExif.value = {
+    loading: false,
+    data: null,
+    imageUrl: ''
+  }
 }
 
 const nextImage = () => {
   lightbox.value.currentIndex = (lightbox.value.currentIndex + 1) % lightbox.value.images.length
   lightbox.value.currentImage = lightbox.value.images[lightbox.value.currentIndex]
+  prepareLightboxExif(lightbox.value.currentImage)
 }
 
 const prevImage = () => {
   lightbox.value.currentIndex = 
     (lightbox.value.currentIndex - 1 + lightbox.value.images.length) % lightbox.value.images.length
   lightbox.value.currentImage = lightbox.value.images[lightbox.value.currentIndex]
+  prepareLightboxExif(lightbox.value.currentImage)
 }
+
+const prepareLightboxExif = (imageUrl) => {
+  const normalizedUrl = normalizeUrl(imageUrl)
+  lightboxExif.value = {
+    loading: true,
+    data: null,
+    imageUrl: normalizedUrl
+  }
+
+  nextTick(() => {
+    const imageEl = lightboxImageRef.value
+    if (!imageEl) return
+    if (imageEl.complete) {
+      handleLightboxImageLoad()
+    }
+  })
+}
+
+const handleLightboxImageLoad = () => {
+  const imageEl = lightboxImageRef.value
+  if (!imageEl) return
+  const imageUrl = normalizeUrl(imageEl.currentSrc || imageEl.src)
+  if (imageUrl !== lightboxExif.value.imageUrl) return
+  loadLightboxExif(imageUrl)
+}
+
+const loadLightboxExif = async (imageUrl) => {
+  const targetUrl = lightboxExif.value.imageUrl
+  if (imageUrl !== targetUrl) return
+
+  try {
+    const data = await loadExifFromUrl(imageUrl)
+    if (lightboxExif.value.imageUrl !== targetUrl) return
+    lightboxExif.value = {
+      loading: false,
+      data,
+      imageUrl: targetUrl
+    }
+  } catch (error) {
+    console.error('Error reading EXIF data:', error)
+    if (lightboxExif.value.imageUrl === targetUrl) {
+      lightboxExif.value.loading = false
+    }
+  }
+}
+
+const handleLightboxKeydown = (event) => {
+  if (!lightbox.value.open) return
+
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeLightbox()
+    return
+  }
+
+  if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    nextImage()
+    return
+  }
+
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    prevImage()
+  }
+}
+
+watch(
+  () => lightbox.value.open,
+  (isOpen) => {
+    if (isOpen) {
+      window.addEventListener('keydown', handleLightboxKeydown)
+      return
+    }
+    window.removeEventListener('keydown', handleLightboxKeydown)
+  }
+)
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleLightboxKeydown)
+})
 </script>
 
 <style scoped>
@@ -353,12 +504,41 @@ const prevImage = () => {
   border-bottom: 1px solid #1a1a1a;
 }
 
+.event-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .event-name {
   font-size: 2.5rem;
   font-weight: 600;
   margin-bottom: 1rem;
   color: #ffffff;
   letter-spacing: -0.01em;
+}
+
+.event-title-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid #2a2a2a;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f0f0f0;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  margin-bottom: 1rem;
+}
+
+.event-title-link:hover {
+  background: #1a1a1a;
+  border-color: #3a3a3a;
+  color: #ffffff;
 }
 
 .event-meta {
@@ -388,6 +568,12 @@ const prevImage = () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
+}
+
+.image-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .image-item {
@@ -428,24 +614,25 @@ const prevImage = () => {
   opacity: 1;
 }
 
-.zoom-icon {
-  font-size: 2rem;
-  color: #ffffff;
+.zoom-dot {
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.08);
 }
 
 /* EXIF Tooltip */
 .exif-tooltip {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.9);
-  color: #ffffff;
-  padding: 0.75rem;
-  font-size: 0.75rem;
+  color: #9a9a9a;
+  font-size: 0.72rem;
   line-height: 1.4;
-  z-index: 10;
-  backdrop-filter: blur(10px);
+  letter-spacing: 0.02em;
+  min-height: 1.1rem;
+}
+
+.exif-tooltip--below {
+  padding: 0 0.1rem;
 }
 
 .exif-loading,
@@ -461,7 +648,7 @@ const prevImage = () => {
 }
 
 .exif-item {
-  color: #cccccc;
+  color: #b8b8b8;
 }
 
 /* Album Link */
@@ -513,8 +700,8 @@ const prevImage = () => {
   max-width: 90vw;
   max-height: 90vh;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  gap: 2rem;
 }
 
 .lightbox-image {
@@ -524,10 +711,16 @@ const prevImage = () => {
   border-radius: 4px;
 }
 
+.lightbox-panel {
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 .lightbox-info {
-  margin-top: 1rem;
-  text-align: center;
   color: #ffffff;
+  text-align: left;
 }
 
 .lightbox-info h3 {
@@ -538,6 +731,58 @@ const prevImage = () => {
 .lightbox-info p {
   color: #999999;
   font-size: 0.9rem;
+}
+
+.lightbox-exif-card {
+  background: rgba(15, 15, 15, 0.9);
+  border: 1px solid #222222;
+  border-radius: 10px;
+  padding: 1rem;
+  color: #ffffff;
+  min-height: 120px;
+}
+
+.lightbox-exif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.lightbox-exif-card h4 {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  color: #d6d6d6;
+}
+
+
+.lightbox-exif {
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: #b3b3b3;
+}
+
+.lightbox-exif-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.lightbox-exif-label {
+  display: block;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8c8c8c;
+  margin-bottom: 0.1rem;
+}
+
+.lightbox-exif-value {
+  display: block;
+  font-size: 0.78rem;
+  color: #e0e0e0;
 }
 
 .lightbox-close {
@@ -605,7 +850,19 @@ const prevImage = () => {
 
   .exif-tooltip {
     font-size: 0.65rem;
-    padding: 0.5rem;
+  }
+
+  .lightbox-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .lightbox-panel {
+    width: min(90vw, 360px);
+  }
+
+  .lightbox-exif-card {
+    width: 100%;
   }
 
   .lightbox-nav {

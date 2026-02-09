@@ -2,10 +2,7 @@
   <div class="app">
     <Header :info="portfolioData.info" />
     <main class="main-content">
-      <EventGallery 
-        :events="portfolioData.events" 
-        :maxImages="portfolioData.settings?.maxImagesPerEvent || 6"
-      />
+      <EventGallery :events="portfolioData.events" :maxImages="portfolioData.settings?.maxImagesPerEvent || 6" />
     </main>
     <Footer :info="portfolioData.info" />
   </div>

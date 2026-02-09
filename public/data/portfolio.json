@@ -1,8 +1,7 @@
 {
   "info": {
     "name": "littlechin Photos",
-    "links": [
-      {
+    "links": [{
         "name": "Instagram",
         "url": "https://instagram.com/littlechintw",
         "icon": "instagram"
@@ -17,21 +16,19 @@
   "settings": {
     "maxImagesPerEvent": 6
   },
-  "events": [
-    {
-      "id": "devfest-taipei-2025",
-      "name": "DevFest Taipei 2025",
-      "date": "2025-11-30",
-      "location": "Taipei, Taiwan",
-      "description": "",
-      "folder": "devfest-taipei-2025",
-      "albumUrl": "https://photos.app.goo.gl/YAhUsgGw5tV1GZx8A",
-      "coverImage": "cover.jpg",
-      "images": [
-        "photo1.jpg",
-        "photo2.jpg",
-        "photo3.jpg"
-      ]
-    }
-  ]
+  "events": [{
+    "id": "ashore-2025",
+    "name": "上岸音樂節 2025",
+    "date": "2025-05-16 - 2025-05-17",
+    "location": "NCU, Taiwan",
+    "description": "",
+    "folder": "ashore-2025",
+    "albumUrl": "https://www.instagram.com/p/DQKQLuxEtfC",
+    "coverImage": "LCP_3207.jpg",
+    "images": [
+      "LCP_3207.jpg",
+      "LCP_4037.jpg",
+      "LCP_2885.jpg"
+    ]
+  }]
 }
