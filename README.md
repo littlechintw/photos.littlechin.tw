@@ -13,6 +13,8 @@ A modern, dark-themed photography portfolio website built with Vue 3 and Vite, d
 - 🔧 **Easy to Configure**: Simple JSON-based configuration
 - 🚀 **Fast**: Built with Vite for optimal performance
 - 📦 **CI/CD**: Automated deployment to GitHub Pages
+- 🗜️ **Automatic Image Compression**: Images are automatically compressed during build while preserving EXIF data
+- 📅 **Flexible Date Formats**: Support for year-only, year-month, year-month-day, and date ranges
 
 ## Project Structure
 
@@ -83,12 +85,42 @@ Edit `public/data/portfolio.json` to customize your portfolio:
 - `id`: Unique identifier for the event
 - `name`: Event name displayed as the heading
 - `date`: Event date (ISO format recommended)
+  - Single date: `"2024-01-15"` displays as "January 15, 2024"
+  - Year only: `"2024"` displays as "2024"
+  - Year-month: `"2024-01"` displays as "January 2024"
+  - Date range (string): `"2024-01-15 to 2024-01-17"` displays as "January 15, 2024 - January 17, 2024"
+  - Date range (object): `{"start": "2024-01-15", "end": "2024-01-17"}` or `{"start": "2024-01-15", "end": "2024-01-17", "format": "year-month"}`
 - `location`: Event location
 - `description`: Brief description of the event
 - `folder`: Name of the folder in `imgs/` containing event photos
 - `albumUrl`: (Optional) Link to full album (e.g., Google Photos)
 - `maxImages`: (Optional) Override global setting for this specific event
 - `images`: Array of image filenames in the event folder
+
+**Date Format Examples:**
+
+```json
+{
+  "events": [
+    {
+      "name": "Single Day Event",
+      "date": "2024-01-15"
+    },
+    {
+      "name": "Multi-day Event",
+      "date": "2024-01-15 to 2024-01-17"
+    },
+    {
+      "name": "Month-long Exhibition",
+      "date": {"start": "2024-01", "end": "2024-02", "format": "year-month"}
+    },
+    {
+      "name": "Annual Event",
+      "date": "2024"
+    }
+  ]
+}
+```
 
 ## Adding Events
 
@@ -99,6 +131,27 @@ Edit `public/data/portfolio.json` to customize your portfolio:
    - List all image filenames in the `images` array
    - Add `albumUrl` to link to the full album on Google Photos or similar
    - Set `maxImages` if you want to override the default limit for this event
+
+## Image Compression
+
+Images are automatically compressed during the build process to optimize loading times:
+
+- **Automatic**: Compression runs automatically before each build via the `prebuild` script
+- **Smart Caching**: Already compressed images are skipped on subsequent builds
+- **EXIF Preservation**: All camera metadata (EXIF data) is preserved during compression
+- **Quality**: Images are compressed to 85% JPEG quality and resized to max 2400px dimension
+- **Backup**: Original images are backed up with `.original` extension (excluded from git)
+- **Manual Compression**: Run `npm run compress-images` to compress images without building
+
+### Compression Settings
+
+You can modify compression settings in `scripts/compress-images.js`:
+- `QUALITY`: JPEG quality (default: 85)
+- `MAX_DIMENSION`: Maximum width or height in pixels (default: 2400)
+
+### Compression Metadata
+
+The script maintains a `.compression-metadata.json` file in the `imgs/` directory to track which images have been compressed. This file is excluded from git.
 
 ## EXIF Data Display
 
