@@ -148,13 +148,66 @@ const shouldShowAlbumLink = (event) => {
   return event.images.length > max
 }
 
-const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  })
+const formatDate = (date) => {
+  if (!date) return '';
+  
+  // Handle date ranges (e.g., "2025-11-30 to 2025-12-01" or object with start/end)
+  if (typeof date === 'object' && (date.start || date.end)) {
+    const startFormatted = formatSingleDate(date.start, date.format);
+    const endFormatted = formatSingleDate(date.end, date.format);
+    
+    if (date.start && date.end) {
+      return `${startFormatted} - ${endFormatted}`;
+    }
+    return startFormatted || endFormatted;
+  }
+  
+  // Handle string dates (could be range or single)
+  if (typeof date === 'string') {
+    // Check if it's a range
+    if (date.includes(' to ') || date.includes(' - ')) {
+      const separator = date.includes(' to ') ? ' to ' : ' - ';
+      const [start, end] = date.split(separator).map(d => d.trim());
+      return `${formatSingleDate(start)} - ${formatSingleDate(end)}`;
+    }
+    
+    return formatSingleDate(date);
+  }
+  
+  return '';
+}
+
+const formatSingleDate = (dateString, format) => {
+  if (!dateString) return '';
+  
+  try {
+    // Parse the date string
+    const parts = dateString.split('-');
+    
+    // Determine format based on parts length or explicit format
+    if (format === 'year' || parts.length === 1) {
+      // Year only (e.g., "2025")
+      return parts[0];
+    } else if (format === 'year-month' || parts.length === 2) {
+      // Year-month (e.g., "2025-11" -> "November 2025")
+      const date = new Date(`${parts[0]}-${parts[1]}-01`);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long'
+      });
+    } else {
+      // Full date (e.g., "2025-11-30" -> "November 30, 2025")
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    }
+  } catch (error) {
+    console.error('Error formatting date:', dateString, error);
+    return dateString;
+  }
 }
 
 // Helper function to parse EXIF fractional values
